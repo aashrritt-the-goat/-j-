@@ -1,0 +1,644 @@
+<title>Pronouncer's Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column "pronouncer's desk" — the stage card holds the live word, controls and setup stack beneath it. */
+:root {
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --ink: #1b2a4a;
+  --muted: #5a6784;
+  --line: #d3d9e5;
+  --accent: #b97a06;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbf0d9;
+  --good: #1f7a4d;
+  --good-soft: #e1f3e9;
+  --bad: #b3261e;
+  --bad-soft: #fbe6e4;
+  --display: "Zilla Slab", "Rockwell", "Georgia", serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "SFMono-Regular", "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10151e; --surface: #1a2230; --ink: #e6eaf2; --muted: #9aa6bd; --line: #2c3748;
+    --accent: #e8b341; --accent-ink: #1a1405; --accent-soft: #3a2f16;
+    --good: #5fd39a; --good-soft: #163327; --bad: #ff8a80; --bad-soft: #3d1c1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10151e; --surface: #1a2230; --ink: #e6eaf2; --muted: #9aa6bd; --line: #2c3748;
+  --accent: #e8b341; --accent-ink: #1a1405; --accent-soft: #3a2f16;
+  --good: #5fd39a; --good-soft: #163327; --bad: #ff8a80; --bad-soft: #3d1c1a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 2.1rem; line-height: 1.1; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: .95rem; }
+.stats { display: flex; gap: 16px; font-variant-numeric: tabular-nums; }
+.stat { display: grid; text-align: right; }
+.stat b { font-family: var(--display); font-size: 1.5rem; line-height: 1; }
+.stat span { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px; display: grid; gap: 18px; }
+.stage-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+.eyebrow { font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag { font-size: .75rem; padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--line); }
+
+.speak-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.big-say {
+  width: 84px; height: 84px; border-radius: 50%; border: none; cursor: pointer; flex: none;
+  background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
+}
+.big-say svg { width: 38px; height: 38px; }
+.big-say.talking { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+@media (prefers-reduced-motion: reduce) { .big-say.talking { animation: none; } }
+.prompt { min-width: 0; flex: 1; }
+.prompt-main { font-family: var(--display); font-size: 1.5rem; font-weight: 700; line-height: 1.2; margin: 0; }
+.prompt-sub { color: var(--muted); margin: 4px 0 0; }
+
+.asks { display: flex; flex-wrap: wrap; gap: 8px; }
+button { font: inherit; }
+.ask {
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 8px;
+  padding: 8px 12px; cursor: pointer; font-size: .9rem;
+}
+.ask:hover:not(:disabled) { border-color: var(--accent); }
+.ask:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.clues { display: grid; gap: 6px; margin: 0; }
+.clue { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.clue dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); padding-top: 2px; }
+.clue dd { margin: 0; min-width: 0; }
+@media (max-width: 480px) { .clue { grid-template-columns: 1fr; gap: 2px; } }
+
+form.answer { display: flex; gap: 10px; flex-wrap: wrap; }
+#spell {
+  flex: 1 1 260px; min-width: 0; font-family: var(--mono); font-size: 1.6rem; letter-spacing: .12em;
+  padding: 10px 14px; border-radius: 10px; border: 2px solid var(--line); background: var(--bg); color: var(--ink);
+  text-transform: lowercase;
+}
+#spell:disabled { opacity: .5; }
+.primary {
+  border: none; border-radius: 10px; padding: 12px 22px; cursor: pointer; font-weight: 700;
+  background: var(--ink); color: var(--bg);
+}
+.primary:disabled { opacity: .4; cursor: not-allowed; }
+.secondary { border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; cursor: pointer; background: transparent; color: var(--ink); }
+
+.verdict { border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.verdict.good { background: var(--good-soft); color: var(--good); }
+.verdict.bad { background: var(--bad-soft); color: var(--bad); }
+.verdict strong { font-family: var(--display); font-size: 1.2rem; }
+.verdict .letters { font-family: var(--mono); font-size: 1.3rem; letter-spacing: .14em; color: var(--ink); word-break: break-all; }
+.verdict .yours { color: var(--ink); font-size: .9rem; }
+.verdict .yours s { font-family: var(--mono); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px 24px; display: grid; gap: 14px; }
+.panel h2 { font-family: var(--display); font-size: 1.25rem; margin: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.row label { display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.field { display: grid; gap: 4px; min-width: 0; flex: 1 1 220px; }
+.field > span { font-size: .75rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+select, input[type="range"] { width: 100%; }
+select { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.note { color: var(--muted); font-size: .9rem; margin: 0; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; }
+
+.missed { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.missed li { font-family: var(--mono); font-size: .95rem; padding: 4px 10px; border-radius: 6px; background: var(--bad-soft); color: var(--ink); }
+textarea { width: 100%; min-height: 140px; font-family: var(--mono); font-size: .85rem; padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+code { font-family: var(--mono); font-size: .85em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.warn { background: var(--bad-soft); color: var(--bad); padding: 10px 14px; border-radius: 10px; margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Pronouncer's Desk</h1>
+      <p class="sub">Spelling bee drill · San Joaquin County junior high level (grades 7–9)</p>
+    </div>
+    <div class="stats" aria-live="polite">
+      <div class="stat"><b id="stCorrect">0</b><span>Correct</span></div>
+      <div class="stat"><b id="stTried">0</b><span>Asked</span></div>
+      <div class="stat"><b id="stStreak">0</b><span>Streak</span></div>
+    </div>
+  </header>
+
+  <p class="warn" id="noSpeech" hidden>This browser can't speak aloud. Open the page in Chrome, Edge or Safari to hear the words.</p>
+
+  <section class="stage" aria-label="Current word">
+    <div class="stage-top">
+      <span class="eyebrow" id="progress">Ready</span>
+      <span class="tag" id="sourceTag">—</span>
+    </div>
+
+    <div class="speak-row">
+      <button class="big-say" id="sayBtn" type="button" aria-label="Say the word">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+      <div class="prompt">
+        <p class="prompt-main" id="promptMain">Press Start to hear your first word.</p>
+        <p class="prompt-sub" id="promptSub">The word is never shown on screen. Listen, ask for clues, then type it.</p>
+      </div>
+    </div>
+
+    <div class="asks" role="group" aria-label="Ask the pronouncer">
+      <button class="ask" type="button" data-ask="repeat" disabled>Repeat</button>
+      <button class="ask" type="button" data-ask="slow" disabled>Say it slowly</button>
+      <button class="ask" type="button" data-ask="def" disabled>Definition</button>
+      <button class="ask" type="button" data-ask="sent" disabled>Use it in a sentence</button>
+      <button class="ask" type="button" data-ask="pos" disabled>Part of speech</button>
+      <button class="ask" type="button" data-ask="orig" disabled>Language of origin</button>
+    </div>
+
+    <dl class="clues" id="clues"></dl>
+
+    <form class="answer" id="answerForm" autocomplete="off">
+      <input id="spell" type="text" placeholder="type the spelling" aria-label="Your spelling" spellcheck="false" autocapitalize="off" autocorrect="off" disabled>
+      <button class="primary" id="submitBtn" type="submit" disabled>Submit</button>
+    </form>
+
+    <div id="verdict" hidden></div>
+
+    <div class="row">
+      <button class="primary" id="startBtn" type="button">Start the bee</button>
+      <button class="secondary" id="nextBtn" type="button" hidden>Next word</button>
+      <button class="secondary" id="skipBtn" type="button" hidden>Skip</button>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Setup">
+    <h2>Round setup</h2>
+    <div class="row">
+      <label><input type="checkbox" id="useCore" checked> Junior high study words <span class="count" id="cntCore"></span></label>
+      <label><input type="checkbox" id="useTricky" checked> Tricky words from the internet <span class="count" id="cntTricky"></span></label>
+      <label><input type="checkbox" id="useCustom"> My imported list <span class="count" id="cntCustom"></span></label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Rules</span>
+        <select id="mode">
+          <option value="practice">Practice: keep going after a miss</option>
+          <option value="bee">Bee rules: one miss and you're out</option>
+        </select>
+      </label>
+      <label class="field"><span>Order</span>
+        <select id="order">
+          <option value="shuffle">Shuffled</option>
+          <option value="easy">Study list first, tricky words last</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Voice</span><select id="voice"></select></label>
+      <label class="field"><span>Speaking speed <b id="rateVal">0.85×</b></span><input id="rate" type="range" min="0.5" max="1.3" step="0.05" value="0.85"></label>
+    </div>
+    <p class="note">Just like a real bee, the pronouncer says the word twice. Ask for as many clues as you like. They don't cost points.</p>
+  </section>
+
+  <section class="panel" aria-label="Missed words">
+    <h2>Words to review</h2>
+    <p class="note" id="missedEmpty">Words you miss collect here so you can drill them again.</p>
+    <ul class="missed" id="missedList"></ul>
+    <div class="row"><button class="secondary" id="drillBtn" type="button" hidden>Drill only these words</button></div>
+  </section>
+
+  <section class="panel" aria-label="Import a word list">
+    <h2>Import the official SJCOE list</h2>
+    <p class="note">The San Joaquin County Office of Education gives the year's junior high study list to schools and posts it at <a href="https://www.sjcoe.org/spellingbee/" target="_blank" rel="noopener">sjcoe.org/spellingbee</a>. Paste it here, one word per line. You can add clues on the same line, separated by <code>|</code>:</p>
+    <p class="note"><code>word | part of speech | definition | sentence | language of origin</code></p>
+    <textarea id="importBox" placeholder="accommodate&#10;bureaucracy | noun | a system of government run by many officials | The bureaucracy slowed the permit. | French"></textarea>
+    <div class="row">
+      <button class="primary" id="importBtn" type="button">Save my list</button>
+      <button class="secondary" id="clearImportBtn" type="button">Clear my list</button>
+      <span class="count" id="importMsg" aria-live="polite"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+// [word, part of speech, definition, sentence, language of origin, (optional) how the voice should say it]
+const CORE = [
+["abundance","noun","a very large quantity of something","The garden produced an abundance of tomatoes this summer.","Latin"],
+["accommodate","verb","to provide room for; to adapt to fit someone's needs","The bus can accommodate forty students.","Latin"],
+["acquaintance","noun","a person you know slightly, but not a close friend","She is an acquaintance from my swim team.","Old French"],
+["adolescence","noun","the period of growing up between childhood and adulthood","Adolescence brings many changes.","Latin"],
+["aggressive","adjective","ready or likely to attack or confront","The aggressive goose chased us across the park.","Latin"],
+["allegiance","noun","loyalty to a person, group, or cause","Students recite the Pledge of Allegiance each morning.","Old French"],
+["amateur","noun","a person who does something for enjoyment rather than for pay","The amateur photographer won first prize.","French"],
+["anonymous","adjective","having no known or published name","An anonymous donor paid for the new library books.","Greek"],
+["apparatus","noun","equipment designed for a particular use","The firefighters wore breathing apparatus.","Latin"],
+["archaeology","noun","the study of human history through digging up and examining old sites","Her interest in archaeology began on a trip to Egypt.","Greek"],
+["arithmetic","noun","the branch of mathematics that deals with numbers and basic operations","Mental arithmetic helps when you shop.","Greek"],
+["ascension","noun","the act of rising or climbing","The balloon's ascension drew a crowd.","Latin"],
+["asthma","noun","a condition that makes breathing difficult","He carries an inhaler for his asthma.","Greek","azma"],
+["bachelor","noun","an unmarried man; also a four-year college degree","She earned a bachelor's degree in biology.","Old French"],
+["beneficial","adjective","producing good or helpful results","Exercise is beneficial to your health.","Latin"],
+["bizarre","adjective","very strange or unusual","The cat made a bizarre noise.","French"],
+["boulevard","noun","a wide city street, often lined with trees","We walked down the boulevard to the theater.","French"],
+["bureaucracy","noun","a system of government or management with many rules and officials","The bureaucracy slowed down the building permit.","French"],
+["camouflage","noun","a disguise that helps something blend in with its surroundings","The chameleon's camouflage kept it hidden.","French"],
+["cantaloupe","noun","a melon with a rough rind and orange flesh","We sliced a cantaloupe for breakfast.","French"],
+["catastrophe","noun","a sudden event causing great damage or suffering","The flood was a catastrophe for the town.","Greek"],
+["changeable","adjective","likely to change","Spring weather is changeable.","Old French + English"],
+["chauffeur","noun","a person employed to drive a car for someone","The chauffeur opened the car door.","French"],
+["colonel","noun","a military officer ranking above a lieutenant colonel","The colonel addressed the troops.","French (from Italian)","kernel"],
+["conscientious","adjective","careful to do what is right and to do a job well","A conscientious student checks her work twice.","Latin"],
+["consensus","noun","general agreement among a group","The class reached a consensus on the field trip.","Latin"],
+["controversy","noun","a long public disagreement","The new rule caused a lot of controversy.","Latin"],
+["courteous","adjective","polite and respectful","The courteous clerk helped us find the book.","Old French"],
+["curriculum","noun","the courses offered by a school","Coding was added to the curriculum this year.","Latin"],
+["deceive","verb","to cause someone to believe something that is not true","The magician tried to deceive the audience.","Latin"],
+["descendant","noun","a person related to someone who lived in an earlier generation","He is a descendant of farmers from Lodi.","Latin"],
+["desperate","adjective","having lost hope; badly needing something","The desperate hikers searched for water.","Latin"],
+["dilemma","noun","a situation requiring a difficult choice","Choosing between the two teams was a real dilemma.","Greek"],
+["disastrous","adjective","causing great damage or failure","The disastrous storm knocked out power for days.","French"],
+["discipline","noun","training that develops self-control and obedience to rules","Learning the piano takes discipline.","Latin"],
+["eccentric","adjective","unusual or odd in behavior","The eccentric inventor wore two hats at once.","Greek"],
+["ecstasy","noun","a feeling of overwhelming happiness","The fans screamed in ecstasy when the team won.","Greek"],
+["eligible","adjective","qualified or allowed to take part","Students in grades seven through nine are eligible to compete.","Latin"],
+["embarrass","verb","to make someone feel awkward or ashamed","Please don't embarrass me in front of my friends.","French"],
+["endeavor","noun","a serious attempt to achieve something","Building the robot was a team endeavor.","Old French"],
+["entrepreneur","noun","a person who starts and runs a business","The young entrepreneur sold lemonade all summer.","French"],
+["exaggerate","verb","to describe something as bigger or more important than it is","Don't exaggerate the size of the fish you caught.","Latin"],
+["exhilarate","verb","to make someone feel very happy and excited","Roller coasters exhilarate my little sister.","Latin"],
+["extraordinary","adjective","very unusual or remarkable","She has an extraordinary memory for names.","Latin"],
+["facetious","adjective","joking about serious matters at the wrong time","His facetious remark annoyed the teacher.","French"],
+["fascinate","verb","to attract and hold someone's strong interest","Volcanoes fascinate my brother.","Latin"],
+["fluorescent","adjective","giving off bright light when exposed to radiation","The fluorescent lights hummed in the hallway.","Latin"],
+["foreign","adjective","belonging to or coming from another country","She speaks three foreign languages.","Old French"],
+["fulfill","verb","to carry out or complete a promise or task","He will fulfill his promise to help.","Old English"],
+["gauge","noun","an instrument for measuring an amount","The fuel gauge showed the tank was empty.","Old French"],
+["government","noun","the group of people who rule a country or state","Our government has three branches.","Old French"],
+["grammar","noun","the rules of how words are put together in a language","Good grammar makes writing clear.","Greek"],
+["guarantee","noun","a formal promise that something will be done or will work","The toaster comes with a one-year guarantee.","French"],
+["handkerchief","noun","a small square of cloth used to wipe the nose or face","Grandpa keeps a handkerchief in his pocket.","English + French"],
+["harass","verb","to bother or annoy someone again and again","Please do not harass the ducks at the pond.","French"],
+["hemorrhage","noun","heavy, uncontrolled bleeding","The doctor stopped the hemorrhage quickly.","Greek"],
+["hierarchy","noun","a system in which people or things are ranked one above another","There is a strict hierarchy in the army.","Greek"],
+["hygiene","noun","practices that keep people clean and healthy","Washing your hands is good hygiene.","Greek"],
+["hypocrisy","noun","claiming to believe something while acting differently","It was hypocrisy to preach recycling and then litter.","Greek"],
+["idiosyncrasy","noun","a habit or way of behaving peculiar to one person","One idiosyncrasy of my uncle is eating pizza with a fork.","Greek"],
+["illuminate","verb","to light up","Lanterns illuminate the garden path.","Latin"],
+["immediately","adverb","at once; without delay","Please come to the office immediately.","Latin"],
+["incandescent","adjective","glowing with light because of great heat","The incandescent bulb grew too hot to touch.","Latin"],
+["indispensable","adjective","absolutely necessary","A good dictionary is indispensable to a speller.","Latin"],
+["inoculate","verb","to give a vaccine to protect against a disease","Doctors inoculate children against measles.","Latin"],
+["irresistible","adjective","too tempting or powerful to resist","The smell of fresh bread was irresistible.","Latin"],
+["jeopardy","noun","danger of loss or harm","The drought put the crops in jeopardy.","Old French"],
+["kaleidoscope","noun","a tube with mirrors and colored pieces that form changing patterns","She turned the kaleidoscope to see new patterns.","Greek"],
+["knowledgeable","adjective","knowing a lot; well informed","Our guide was knowledgeable about birds.","English"],
+["laboratory","noun","a room or building for scientific work","We tested the water samples in the laboratory.","Latin"],
+["leisure","noun","free time when you are not working","She reads mysteries in her leisure time.","Old French"],
+["liaison","noun","a person who helps two groups communicate and work together","The student liaison shared ideas with the principal.","French","lee ay zon"],
+["lieutenant","noun","a military or police officer of lower rank","The lieutenant gave the order to march.","French"],
+["maintenance","noun","the work of keeping something in good condition","The car needs regular maintenance.","Old French"],
+["maneuver","noun","a movement that requires skill and care","The pilot performed a tricky maneuver.","French"],
+["mediocre","adjective","only average; not very good","The movie was mediocre at best.","Latin"],
+["millennium","noun","a period of one thousand years","The new millennium began in 2001.","Latin"],
+["miniature","adjective","very small; a small copy of something","He collects miniature trains.","Italian"],
+["mischievous","adjective","causing playful trouble","The mischievous puppy hid my sock.","Old French"],
+["mnemonic","noun","a pattern or rhyme that helps you remember something","A mnemonic helps me remember the planets.","Greek","nemonic"],
+["necessary","adjective","needed; required","Water is necessary for life.","Latin"],
+["neighbor","noun","a person who lives near you","Our neighbor waters our plants when we travel.","Old English"],
+["nuisance","noun","a person or thing that is annoying","The barking dog was a nuisance all night.","Old French"],
+["occasionally","adverb","now and then; not often","We occasionally eat dinner outside.","Latin"],
+["occurrence","noun","something that happens; an event","Snow is a rare occurrence in Stockton.","Latin"],
+["omniscient","adjective","knowing everything","The story is told by an omniscient narrator.","Latin"],
+["onomatopoeia","noun","the use of words that imitate the sounds they describe","Buzz is an example of onomatopoeia.","Greek"],
+["parallel","adjective","side by side and always the same distance apart","Railroad tracks are parallel.","Greek"],
+["pavilion","noun","a large tent or open building used for events","The picnic was held in the pavilion.","French"],
+["perseverance","noun","continued effort to do something despite difficulty","Her perseverance helped her finish the marathon.","Latin"],
+["phenomenon","noun","a fact or event that can be observed","A rainbow is a natural phenomenon.","Greek"],
+["picturesque","adjective","visually charming, like a picture","We stayed in a picturesque mountain village.","French"],
+["playwright","noun","a person who writes plays","Shakespeare is a famous playwright.","English"],
+["pneumonia","noun","a serious infection of the lungs","He stayed home for two weeks with pneumonia.","Greek"],
+["possession","noun","something that you own","The bike was his favorite possession.","Latin"],
+["privilege","noun","a special right given to a person or group","Driving is a privilege, not a right.","Latin"],
+["pronunciation","noun","the way a word is spoken","Check the pronunciation in the dictionary.","Latin"],
+["psychology","noun","the scientific study of the mind and behavior","She wants to study psychology in college.","Greek"],
+["questionnaire","noun","a written set of questions used to gather information","Please fill out the questionnaire before you leave.","French"],
+["recommend","verb","to suggest something as good or suitable","I recommend the tomato soup.","Latin"],
+["reminiscent","adjective","bringing to mind something from the past","The song is reminiscent of summer vacation.","Latin"],
+["renaissance","noun","a revival or rebirth of interest, especially in art and learning","The town enjoyed a renaissance of local art.","French"],
+["rhythm","noun","a regular, repeated pattern of sounds or beats","Clap to the rhythm of the song.","Greek"],
+["sabotage","noun","deliberate damage done to stop something from working","Someone tried to sabotage the science project.","French"],
+["schedule","noun","a plan that lists times when things will happen","Check the bus schedule before you go.","Latin"],
+["silhouette","noun","the dark outline of someone or something against a light background","We saw the silhouette of a deer at sunset.","French"],
+["souvenir","noun","an object kept as a reminder of a place or event","I bought a souvenir at the museum.","French"],
+["subtle","adjective","so slight that it is hard to notice","There was a subtle change in her voice.","Latin"],
+["surveillance","noun","close watch kept over someone or something","The bank is under video surveillance.","French"],
+["symmetry","noun","the quality of having matching parts on both sides","A butterfly's wings show symmetry.","Greek"],
+["temperament","noun","a person's or animal's usual nature","The horse has a calm temperament.","Latin"],
+["thorough","adjective","complete and careful about every detail","The inspector did a thorough check of the bus.","Old English"],
+["tortoise","noun","a turtle that lives on land","The tortoise won the race against the hare.","French"],
+["tranquil","adjective","calm and peaceful","The lake was tranquil at dawn.","Latin"],
+["vacuum","noun","a space with no matter in it; also a cleaning machine","Sound cannot travel through a vacuum.","Latin"],
+["vengeance","noun","harm done to someone in return for a wrong","The villain swore vengeance on the hero.","Old French"],
+["vigilant","adjective","carefully watching for danger","Lifeguards must stay vigilant.","Latin"],
+["villain","noun","a wicked character in a story","The villain was caught in the last chapter.","Old French"],
+["whimsical","adjective","playful and fanciful in an unusual way","The book has whimsical drawings of talking cats.","English"],
+["yacht","noun","a boat used for pleasure or racing","A white yacht sailed into the harbor.","Dutch","yot"],
+["zealous","adjective","full of enthusiasm and energy for a cause","The zealous fans cheered the whole game.","Greek"],
+];
+
+// Tricky words: commonly misspelled words and past Scripps National Spelling Bee winning words.
+const TRICKY = [
+["connoisseur","noun","an expert judge in matters of taste, such as food or art","My aunt is a connoisseur of fine cheese.","French","konna sir","Commonly misspelled"],
+["pharaoh","noun","a ruler of ancient Egypt","The pharaoh's tomb was filled with gold.","Egyptian (via Greek)","fair oh","Commonly misspelled"],
+["weird","adjective","very strange or unusual","We heard a weird noise in the attic.","Old English",null,"Commonly misspelled"],
+["supersede","verb","to take the place of something older","The new rules supersede the old ones.","Latin",null,"Commonly misspelled"],
+["liquefy","verb","to make or become liquid","Heat will liquefy the wax.","Latin",null,"Commonly misspelled"],
+["minuscule","adjective","extremely small","There was a minuscule crumb on the plate.","Latin",null,"Commonly misspelled"],
+["dilate","verb","to become wider or larger","Your pupils dilate in the dark.","Latin",null,"Commonly misspelled"],
+["chrysanthemum","noun","a garden flower with many layers of petals","She planted a yellow chrysanthemum by the door.","Greek",null,"Commonly misspelled"],
+["gnocchi","noun","small Italian dumplings, often made from potato","We had potato gnocchi for dinner.","Italian","nyokee","Commonly misspelled"],
+["soubrette","noun","a lively, flirtatious young woman character in a comedy or opera","She played the soubrette in the comic opera.","French","soo bret","Hard bee word"],
+["antediluvian","adjective","extremely old-fashioned; from the time before the biblical Flood","My grandfather's antediluvian phone still has a rotary dial.","Latin",null,"Hard bee word"],
+["logorrhea","noun","excessive and often pointless talkativeness","His logorrhea made the meeting last three hours.","Greek","log uh ree uh","Scripps winning word, 1999"],
+["succedaneum","noun","a substitute","Margarine served as a succedaneum for butter.","Latin","suck seh day nee um","Scripps winning word, 2001"],
+["autochthonous","adjective","native to the place where it is found; indigenous","The autochthonous plants survived the drought.","Greek","aw tock thun us","Scripps winning word, 2004"],
+["appoggiatura","noun","a short ornamental note played before a main note","The pianist added an appoggiatura before the final chord.","Italian","uh poj uh too ruh","Scripps winning word, 2005"],
+["guerdon","noun","a reward","The knight received a guerdon for his bravery.","Old French","gur done","Scripps winning word, 2008"],
+["stromuhr","noun","an instrument that measures how fast blood flows","The researcher used a stromuhr in the experiment.","German","shtrohmoor","Scripps winning word, 2010"],
+["cymotrichous","adjective","having wavy hair","The cymotrichous toddler had curls that bounced.","Greek","sigh mot trick us","Scripps winning word, 2011"],
+["knaidel","noun","a dumpling made of matzo meal, often served in soup","Grandma dropped a knaidel into each bowl of soup.","Yiddish","kuh nay dle","Scripps winning word, 2013"],
+["feuilleton","noun","a section of a newspaper for light fiction, reviews, or essays","He wrote a weekly feuilleton about city life.","French","foy uh tawn","Scripps winning word, 2014"],
+["scherenschnitte","noun","the art of cutting paper into detailed decorative designs","She hung her scherenschnitte in the window.","German","sharen shnitta","Scripps winning word, 2015"],
+["koinonia","noun","Christian fellowship or community","The church picnic was a celebration of koinonia.","Greek","koy no nee ah","Scripps winning word, 2018"],
+["moorhen","noun","a dark water bird with a red bill that lives near ponds","A moorhen paddled through the reeds.","English",null,"Scripps winning word, 2022"],
+["psammophile","noun","a plant or animal that thrives in sandy places","The beetle is a psammophile that lives in dunes.","Greek","sammo file","Scripps winning word, 2023"],
+["abseil","verb","to go down a cliff or wall using a rope","The climbers had to abseil down the canyon wall.","German","ab sile","Scripps winning word, 2024"],
+];
+
+const toWord = (r, src) => ({ w: r[0], pos: r[1], def: r[2], sent: r[3], orig: r[4], say: r[5] || null, src });
+const coreWords = CORE.map(r => toWord(r, "Junior high study word"));
+const trickyWords = TRICKY.map(r => toWord(r, r[6] || "Tricky word"));
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
+};
+
+let customWords = store.get("pd.custom", []);
+let missed = store.get("pd.missed", []);
+let queue = [], idx = -1, cur = null, answered = false, drillMode = false;
+let score = { correct: 0, tried: 0, streak: 0 };
+
+// ---------- speech ----------
+const synth = window.speechSynthesis;
+let voices = [];
+function loadVoices() {
+  if (!synth) return;
+  voices = synth.getVoices().filter(v => /^en/i.test(v.lang));
+  const sel = $("voice"), saved = store.get("pd.voice", "");
+  sel.innerHTML = "";
+  if (!voices.length) { sel.innerHTML = '<option value="">Default voice</option>'; return; }
+  voices.forEach(v => {
+    const o = document.createElement("option");
+    o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
+    sel.appendChild(o);
+  });
+  const pick = voices.find(v => v.name === saved) || voices.find(v => /en-US/i.test(v.lang) && /natural|google|samantha|aria|jenny/i.test(v.name)) || voices.find(v => /en-US/i.test(v.lang)) || voices[0];
+  sel.value = pick.name;
+}
+if (synth) { loadVoices(); synth.onvoiceschanged = loadVoices; } else { $("noSpeech").hidden = false; }
+
+function speak(parts, rateMul = 1) {
+  if (!synth) return;
+  synth.cancel();
+  const voice = voices.find(v => v.name === $("voice").value);
+  const rate = parseFloat($("rate").value) * rateMul;
+  const list = Array.isArray(parts) ? parts : [parts];
+  list.forEach((text, i) => {
+    const u = new SpeechSynthesisUtterance(text);
+    if (voice) u.voice = voice;
+    u.rate = rate; u.lang = voice ? voice.lang : "en-US";
+    if (i === 0) u.onstart = () => $("sayBtn").classList.add("talking");
+    if (i === list.length - 1) { u.onend = u.onerror = () => $("sayBtn").classList.remove("talking"); }
+    synth.speak(u);
+  });
+}
+const voiced = w => w.say || w.w;
+const sentenceForVoice = w => w.say ? w.sent.replace(new RegExp(escapeRe(w.w), "gi"), w.say) : w.sent;
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const masked = w => w.sent ? w.sent.replace(new RegExp(escapeRe(w.w), "gi"), "_____") : "";
+
+// ---------- round ----------
+function pool() {
+  const p = [];
+  if ($("useCore").checked) p.push(...coreWords);
+  if ($("useTricky").checked) p.push(...trickyWords);
+  if ($("useCustom").checked) p.push(...customWords);
+  return p;
+}
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function startRound(words) {
+  drillMode = !!words;
+  let list = words ? words.slice() : pool();
+  if (!list.length) { setPrompt("Pick at least one word list below.", "Then press Start again."); return; }
+  if (!words && $("order").value === "easy") {
+    const tricky = new Set(trickyWords);
+    list = shuffle(list.filter(w => !tricky.has(w))).concat(shuffle(list.filter(w => tricky.has(w))));
+  } else shuffle(list);
+  queue = list; idx = -1;
+  score = { correct: 0, tried: 0, streak: 0 }; renderScore();
+  $("startBtn").textContent = "Restart";
+  nextWord();
+}
+
+function nextWord() {
+  idx++;
+  $("verdict").hidden = true;
+  $("clues").innerHTML = "";
+  $("nextBtn").hidden = true;
+  if (idx >= queue.length) return finish(false);
+  cur = queue[idx]; answered = false;
+  $("progress").textContent = `${drillMode ? "Review drill · " : ""}Word ${idx + 1} of ${queue.length}`;
+  $("sourceTag").textContent = cur.src;
+  setPrompt("Listen to your word.", "Press the speaker or Repeat to hear it again.");
+  setAsking(true);
+  $("skipBtn").hidden = false;
+  $("spell").value = ""; $("spell").focus();
+  speak([`Your word is: ${voiced(cur)}.`, `${voiced(cur)}.`]);
+}
+
+function setAsking(on) {
+  document.querySelectorAll(".ask").forEach(b => b.disabled = !on);
+  $("spell").disabled = !on; $("submitBtn").disabled = !on;
+}
+function setPrompt(a, b) { $("promptMain").textContent = a; $("promptSub").textContent = b; }
+
+function addClue(label, text) {
+  const existing = [...$("clues").children].find(d => d.dataset.label === label);
+  if (existing) { existing.querySelector("dd").textContent = text; return; }
+  const d = document.createElement("div");
+  d.className = "clue"; d.dataset.label = label;
+  d.innerHTML = "<dt></dt><dd></dd>";
+  d.querySelector("dt").textContent = label; d.querySelector("dd").textContent = text;
+  $("clues").appendChild(d);
+}
+
+function ask(kind) {
+  if (!cur) return;
+  const w = cur;
+  switch (kind) {
+    case "repeat": speak(voiced(w)); break;
+    case "slow": speak(voiced(w), 0.6); break;
+    case "def":
+      addClue("Definition", w.def || "No definition was given for this word.");
+      speak(w.def ? `${voiced(w)}. ${w.def}.` : "I don't have a definition for this word.");
+      break;
+    case "sent":
+      addClue("Sentence", w.sent ? masked(w) : "No sentence was given for this word.");
+      speak(w.sent ? [sentenceForVoice(w), `${voiced(w)}.`] : "I don't have a sentence for this word.");
+      break;
+    case "pos":
+      addClue("Part of speech", w.pos || "Not given");
+      speak(w.pos ? `${voiced(w)} is a ${w.pos}.` : "I don't have the part of speech.");
+      break;
+    case "orig":
+      addClue("Origin", w.orig || "Not given");
+      speak(w.orig ? `It comes from ${w.orig}.` : "I don't have the language of origin.");
+      break;
+  }
+  if (!answered) $("spell").focus();
+}
+
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z'-]/g, "");
+
+function submit(e) {
+  e.preventDefault();
+  if (!cur || answered) return;
+  const typed = $("spell").value.trim();
+  if (!typed) { $("spell").focus(); return; }
+  answered = true; setAsking(false);
+  $("skipBtn").hidden = true;
+  score.tried++;
+  const ok = norm(typed) === norm(cur.w);
+  const v = $("verdict");
+  v.hidden = false;
+  const letters = cur.w.toUpperCase().split("").join(" ");
+  if (ok) {
+    score.correct++; score.streak++;
+    v.className = "verdict good";
+    v.innerHTML = `<strong>Correct.</strong><span class="letters"></span>`;
+    v.querySelector(".letters").textContent = letters;
+    if (drillMode) { missed = missed.filter(m => m !== cur.w); saveMissed(); }
+    speak("That is correct.");
+  } else {
+    score.streak = 0;
+    v.className = "verdict bad";
+    v.innerHTML = `<strong>Incorrect.</strong><span>The correct spelling is</span><span class="letters"></span><span class="yours">You spelled: <s></s></span>`;
+    v.querySelector(".letters").textContent = letters;
+    v.querySelector("s").textContent = typed;
+    if (!missed.includes(cur.w)) { missed.push(cur.w); saveMissed(); }
+    speak(["That is incorrect. The correct spelling is:", cur.w.toUpperCase().split("").join(", ") + ".", `${voiced(cur)}.`]);
+  }
+  addClue("Definition", cur.def || "—");
+  if (cur.sent) addClue("Sentence", cur.sent);
+  setPrompt(`The word was “${cur.w}.”`, `${cur.pos || ""}${cur.orig ? " · from " + cur.orig : ""}`);
+  renderScore();
+  if (!ok && $("mode").value === "bee" && !drillMode) return finish(true);
+  $("nextBtn").hidden = false; $("nextBtn").focus();
+}
+
+function skip() {
+  if (!cur || answered) return;
+  if (!missed.includes(cur.w)) { missed.push(cur.w); saveMissed(); }
+  nextWord();
+}
+
+function finish(out) {
+  setAsking(false);
+  $("skipBtn").hidden = true; $("nextBtn").hidden = true;
+  cur = out ? cur : null;
+  const msg = out
+    ? `You spelled ${score.correct} in a row before the bell.`
+    : `You got ${score.correct} of ${score.tried} correct.`;
+  setPrompt(out ? "Eliminated. Good effort." : "Round complete.", msg + " Press Restart for a new round.");
+  if (!out) $("progress").textContent = "Finished";
+  speak(out ? `You have been eliminated. ${msg}` : `Round complete. ${msg}`);
+}
+
+function renderScore() {
+  $("stCorrect").textContent = score.correct;
+  $("stTried").textContent = score.tried;
+  $("stStreak").textContent = score.streak;
+}
+
+function saveMissed() { store.set("pd.missed", missed); renderMissed(); }
+function renderMissed() {
+  const ul = $("missedList"); ul.innerHTML = "";
+  missed.forEach(w => { const li = document.createElement("li"); li.textContent = w; ul.appendChild(li); });
+  $("missedEmpty").hidden = missed.length > 0;
+  $("drillBtn").hidden = missed.length === 0;
+}
+function allWords() { return [...coreWords, ...trickyWords, ...customWords]; }
+
+// ---------- import ----------
+function parseImport(text) {
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const [w, pos, def, sent, orig] = line.split("|").map(s => (s || "").trim());
+    return { w, pos: pos || "", def: def || "", sent: sent || "", orig: orig || "", say: null, src: "My imported list" };
+  }).filter(x => x.w && /[a-zA-Z]/.test(x.w));
+}
+function renderCounts() {
+  $("cntCore").textContent = `(${coreWords.length})`;
+  $("cntTricky").textContent = `(${trickyWords.length})`;
+  $("cntCustom").textContent = `(${customWords.length})`;
+  $("useCustom").disabled = customWords.length === 0;
+  if (!customWords.length) $("useCustom").checked = false;
+}
+
+// ---------- wiring ----------
+$("startBtn").onclick = () => startRound();
+$("nextBtn").onclick = nextWord;
+$("skipBtn").onclick = skip;
+$("sayBtn").onclick = () => cur && !answered ? ask("repeat") : (!queue.length ? startRound() : cur && speak(voiced(cur)));
+$("answerForm").addEventListener("submit", submit);
+document.querySelectorAll(".ask").forEach(b => b.onclick = () => ask(b.dataset.ask));
+$("rate").oninput = () => { $("rateVal").textContent = parseFloat($("rate").value).toFixed(2).replace(/0$/, "") + "×"; store.set("pd.rate", $("rate").value); };
+$("voice").onchange = () => { store.set("pd.voice", $("voice").value); speak("This is how I will read your words."); };
+$("drillBtn").onclick = () => {
+  const lookup = new Map(allWords().map(w => [w.w, w]));
+  const list = missed.map(m => lookup.get(m)).filter(Boolean);
+  if (list.length) startRound(list);
+};
+$("importBtn").onclick = () => {
+  const parsed = parseImport($("importBox").value);
+  if (!parsed.length) { $("importMsg").textContent = "Paste at least one word first."; return; }
+  customWords = parsed; store.set("pd.custom", customWords);
+  renderCounts(); $("useCustom").checked = true;
+  $("importMsg").textContent = `Saved ${parsed.length} words. They're included in the next round.`;
+};
+$("clearImportBtn").onclick = () => {
+  customWords = []; store.set("pd.custom", []); $("importBox").value = "";
+  renderCounts(); $("importMsg").textContent = "Your imported list is cleared.";
+};
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !$("nextBtn").hidden && document.activeElement !== $("spell")) { e.preventDefault(); nextWord(); }
+});
+
+const savedRate = store.get("pd.rate", null);
+if (savedRate) { $("rate").value = savedRate; $("rate").oninput(); }
+if (customWords.length) $("importBox").value = customWords.map(w => [w.w, w.pos, w.def, w.sent, w.orig].join(" | ").replace(/( \| )+$/, "")).join("\n");
+renderCounts(); renderMissed();
+$("sourceTag").textContent = `${coreWords.length + trickyWords.length} words loaded`;
+</script>
